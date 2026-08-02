@@ -2,8 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<head>
- <link rel="icon" type="image/png" href="generated-image.png">
+<link rel="icon" type="image/png" href="generated-image.png">
 <title>Калькулятор стоимости обзвона</title>
 <style>
   * { box-sizing: border-box; }
@@ -99,10 +98,15 @@
   }
   button:hover { opacity: 0.9; }
 
-  .result {
+  .result { display:flex; gap:18px; align-items:flex-start; margin-top:20px; }
+  .result-col {
+    flex:1;
     background: linear-gradient(135deg, rgba(53,194,224,0.12), rgba(78,224,168,0.12));
     border: 1px solid #2e3f4d;
+    border-radius: 14px;
+    padding: 20px;
   }
+  @media (max-width: 800px) { .result { flex-direction: column; } }
   .result .total {
     font-size: 26px;
     font-weight: 800;
@@ -118,7 +122,7 @@
 <body>
 <div class="wrap">
   <h1>Стоимость обзвона</h1>
-  <div class="subtitle">Управление обзвоном · Голосовой робот Арина</div>
+  <div class="subtitle">Голосовой робот Арина</div>
 
   <div class="cards-row">
   <div class="card">
@@ -128,8 +132,8 @@
     <input type="number" id="inn" value="500" min="0">
 
     <label>Кол-во номеров на 1 ИНН</label>
-    <input type="number" step="0.1" id="srznach" value="1.6" min="0">
-    <div class="hint">Медианное количество телефонов, приходящихся на одну компанию (по умолчанию 1,6 — среднее значение)</div>
+    <input type="number" step="0.1" id="srznach" value="1" min="0">
+    <div class="hint">Среднее количество телефонов, приходящихся на одну компанию</div>
 
     <label>Звонков на номер</label>
     <input type="number" id="zvonki_na_nomer" value="1" min="0">
@@ -138,10 +142,16 @@
     <input type="number" step="0.05" id="dlina" value="0.5" min="0">
     <div class="hint">15 сек = 0,25 мин · 30 сек = 0,5 мин · 45 сек = 0,75 мин · 60 сек = 1 мин</div>
 
+    <label>Направление обзвона</label>
+    <select id="direction">
+      <option value="out" selected>Исходящие</option>
+      <option value="in">Входящие</option>
+    </select>
+
     <label>Сценарий обзвона</label>
     <select id="scenario">
-      <option value="questions">1. С вопросами</option>
-      <option value="info" selected>2. Информирование</option>
+      <option value="questions">С вопросами (Диалог)</option>
+      <option value="info" selected>Информирование (Монолог)</option>
     </select>
   </div>
 
@@ -168,10 +178,16 @@
 
   <button onclick="calc()">Рассчитать стоимость</button>
 
-  <div class="card result" id="result" style="display:none;">
-    <h2>Итог</h2>
-    <div class="breakdown" id="breakdown"></div>
-    <div style="margin-top:14px;">Итого эксперимент: <span class="total" id="total"></span></div>
+  <div class="result" id="result" style="display:none;">
+    <div class="result-col">
+      <h2>Ожидаем:</h2>
+      <div class="breakdown" id="breakdown-qty"></div>
+    </div>
+    <div class="result-col">
+      <h2>Стоимость:</h2>
+      <div class="breakdown" id="breakdown-cost"></div>
+      <div style="margin-top:14px;">Итого: <span class="total" id="total"></span></div>
+    </div>
   </div>
 </div>
 
@@ -180,7 +196,7 @@ const TARIFFS = Object.freeze({
   dozvonPct: 0.85,
   tarifMab: 0.60,
   tarifTarifikacia: 1.32,
-  tarifArinaOut: 5.79,
+  tarifArina: { out: 5.79, in: 3.55 },
   scenario: { questions: 6800.00, info: 5200.00 }
 });
 
@@ -193,6 +209,8 @@ function calc(){
   const srznach = parseFloat(document.getElementById('srznach').value)||0;
   const zvonkiNaNomer = parseFloat(document.getElementById('zvonki_na_nomer').value)||0;
   const dlina = parseFloat(document.getElementById('dlina').value)||0;
+  const directionKey = document.getElementById('direction').value;
+  const arinaRate = TARIFFS.tarifArina[directionKey];
   const scenarioKey = document.getElementById('scenario').value;
   const scenarioCost = TARIFFS.scenario[scenarioKey];
 
@@ -200,18 +218,21 @@ function calc(){
   const kolDozvonov = kolZvonkov * TARIFFS.dozvonPct;
   const minuty = kolDozvonov * dlina;
   const stoimostTelefonii = minuty * (TARIFFS.tarifMab + TARIFFS.tarifTarifikacia);
-  const stoimostAriny = kolDozvonov * TARIFFS.tarifArinaOut;
+  const stoimostAriny = kolDozvonov * arinaRate;
   const itogo = stoimostTelefonii + stoimostAriny + scenarioCost;
 
-  document.getElementById('breakdown').innerHTML =
+  document.getElementById('breakdown-qty').innerHTML =
     `Количество звонков: <b>${kolZvonkov.toFixed(0)}</b><br>` +
     `Количество дозвонов (85%): <b>${kolDozvonov.toFixed(0)}</b><br>` +
-    `Минуты суммарно: <b>${minuty.toFixed(1)}</b><br>` +
+    `Минуты суммарно: <b>${minuty.toFixed(1)}</b>`;
+
+  document.getElementById('breakdown-cost').innerHTML =
     `Стоимость телефонии: <b>${fmt(stoimostTelefonii)}</b><br>` +
     `Стоимость Арины: <b>${fmt(stoimostAriny)}</b><br>` +
     `Стоимость сценария: <b>${fmt(scenarioCost)}</b>`;
+
   document.getElementById('total').innerText = fmt(itogo);
-  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').style.display = 'flex';
 }
 calc();
 </script>
