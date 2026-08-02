@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Калькулятор стоимости обзвона</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #12151f;
+    color: #e6e9f0;
+    margin: 0;
+    padding: 30px 16px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .cards-row { display:flex; gap:18px; align-items:flex-start; }
+  .cards-row .card { flex:1; margin-bottom:0; }
+  @media (max-width: 800px) { .cards-row { flex-direction: column; } }
+  h1 {
+    font-size: 22px;
+    text-align: center;
+    margin-bottom: 4px;
+    background: linear-gradient(90deg, #35c2e0, #4ee0a8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 700;
+  }
+  .subtitle { text-align:center; color:#8a90a3; font-size:13px; margin-bottom:28px; }
+
+  .card {
+    background: #1b1f2e;
+    border: 1px solid #2a3042;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    font-size: 14px;
+    color: #9aa3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #35c2e0, #4ee0a8);
+    display: inline-block;
+  }
+
+  label { display:block; font-size:13px; color:#c4c9d6; margin-top:14px; margin-bottom:6px; }
+  .hint { font-size:11.5px; color:#6f7690; margin-top:4px; line-height:1.4; }
+
+  input, select {
+    width: 100%;
+    padding: 10px 12px;
+    background: #12151f;
+    border: 1px solid #2e3547;
+    border-radius: 8px;
+    color: #e6e9f0;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: #35c2e0; }
+
+  .row { display:flex; gap:14px; }
+  .row > div { flex:1; }
+
+  .tariff-list { display:flex; flex-direction:column; gap:8px; }
+  .tariff-item {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:13px; color:#aab0c2;
+    padding: 8px 10px;
+    background:#161a26;
+    border-radius:8px;
+  }
+  .tariff-item span:last-child { color:#e6e9f0; font-weight:600; }
+  .tariff-group-title { font-size:11px; text-transform:uppercase; color:#6f7690; margin-top:10px; margin-bottom:2px; letter-spacing:0.5px;}
+
+  button {
+    width: 100%;
+    padding: 14px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #0c0e16;
+    background: linear-gradient(90deg, #35c2e0, #4ee0a8);
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.9; }
+
+  .result {
+    background: linear-gradient(135deg, rgba(53,194,224,0.12), rgba(78,224,168,0.12));
+    border: 1px solid #2e3f4d;
+  }
+  .result .total {
+    font-size: 26px;
+    font-weight: 800;
+    background: linear-gradient(90deg, #35c2e0, #4ee0a8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .breakdown { font-size:13px; color:#aab0c2; margin-top:10px; line-height:1.9; }
+  .breakdown b { color:#e6e9f0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Стоимость обзвона</h1>
+  <div class="subtitle">Управление обзвоном · Голосовой робот Арина</div>
+
+  <div class="cards-row">
+  <div class="card">
+    <h2>Вводные параметры</h2>
+
+    <label>Кол-во ИНН на обзвон</label>
+    <input type="number" id="inn" value="500" min="0">
+
+    <label>Кол-во номеров на 1 ИНН</label>
+    <input type="number" step="0.1" id="srznach" value="1.6" min="0">
+    <div class="hint">Медианное количество телефонов, приходящихся на одну компанию (по умолчанию 1,6 — среднее значение)</div>
+
+    <label>Звонков на номер</label>
+    <input type="number" id="zvonki_na_nomer" value="1" min="0">
+
+    <label>Длина разговора, мин</label>
+    <input type="number" step="0.05" id="dlina" value="0.5" min="0">
+    <div class="hint">15 сек = 0,25 мин · 30 сек = 0,5 мин · 45 сек = 0,75 мин · 60 сек = 1 мин</div>
+
+    <label>Сценарий обзвона</label>
+    <select id="scenario">
+      <option value="questions">1. С вопросами</option>
+      <option value="info" selected>2. Информирование</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h2>Тарифы (справочно, фиксированы)</h2>
+    <div class="tariff-list">
+      <div class="tariff-group-title">СМС</div>
+      <div class="tariff-item"><span>До 70 символов</span><span>р.7,00</span></div>
+
+      <div class="tariff-group-title">Телефония</div>
+      <div class="tariff-item"><span>МАВ + Этикетка</span><span>р.0,60 / мин</span></div>
+      <div class="tariff-item"><span>Тарификация</span><span>р.1,32 / мин</span></div>
+
+      <div class="tariff-group-title">Сценарий</div>
+      <div class="tariff-item"><span>1. С вопросами</span><span>р.6 800,00</span></div>
+      <div class="tariff-item"><span>2. Информирование</span><span>р.5 200,00</span></div>
+
+      <div class="tariff-group-title">Голосовой робот Арина</div>
+      <div class="tariff-item"><span>Исходящие</span><span>р.5,79 / мин</span></div>
+      <div class="tariff-item"><span>Входящие</span><span>р.3,55 / мин</span></div>
+    </div>
+  </div>
+  </div>
+
+  <button onclick="calc()">Рассчитать стоимость</button>
+
+  <div class="card result" id="result" style="display:none;">
+    <h2>Итог</h2>
+    <div class="breakdown" id="breakdown"></div>
+    <div style="margin-top:14px;">Итого эксперимент: <span class="total" id="total"></span></div>
+  </div>
+</div>
+
+<script>
+const TARIFFS = Object.freeze({
+  dozvonPct: 0.85,
+  tarifMab: 0.60,
+  tarifTarifikacia: 1.32,
+  tarifArinaOut: 5.79,
+  scenario: { questions: 6800.00, info: 5200.00 }
+});
+
+function fmt(n){
+  return 'р.' + n.toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function calc(){
+  const inn = parseFloat(document.getElementById('inn').value)||0;
+  const srznach = parseFloat(document.getElementById('srznach').value)||0;
+  const zvonkiNaNomer = parseFloat(document.getElementById('zvonki_na_nomer').value)||0;
+  const dlina = parseFloat(document.getElementById('dlina').value)||0;
+  const scenarioKey = document.getElementById('scenario').value;
+  const scenarioCost = TARIFFS.scenario[scenarioKey];
+
+  const kolZvonkov = inn * srznach * zvonkiNaNomer;
+  const kolDozvonov = kolZvonkov * TARIFFS.dozvonPct;
+  const minuty = kolDozvonov * dlina;
+  const stoimostTelefonii = minuty * (TARIFFS.tarifMab + TARIFFS.tarifTarifikacia);
+  const stoimostAriny = kolDozvonov * TARIFFS.tarifArinaOut;
+  const itogo = stoimostTelefonii + stoimostAriny + scenarioCost;
+
+  document.getElementById('breakdown').innerHTML =
+    `Количество звонков: <b>${kolZvonkov.toFixed(0)}</b><br>` +
+    `Количество дозвонов (85%): <b>${kolDozvonov.toFixed(0)}</b><br>` +
+    `Минуты суммарно: <b>${minuty.toFixed(1)}</b><br>` +
+    `Стоимость телефонии: <b>${fmt(stoimostTelefonii)}</b><br>` +
+    `Стоимость Арины: <b>${fmt(stoimostAriny)}</b><br>` +
+    `Стоимость сценария: <b>${fmt(scenarioCost)}</b>`;
+  document.getElementById('total').innerText = fmt(itogo);
+  document.getElementById('result').style.display = 'block';
+}
+calc();
+</script>
+</body>
+</html>
