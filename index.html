@@ -118,12 +118,95 @@
   }
   .breakdown { font-size:13px; color:#aab0c2; margin-top:10px; line-height:1.9; }
   .breakdown b { color:#e6e9f0; }
+
+  .page-layout { display:flex; gap:18px; align-items:flex-start; }
+  .history-panel {
+    width: 260px;
+    flex-shrink: 0;
+    background: rgba(27,31,46,0.55);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(42,48,66,0.7);
+    border-radius: 14px;
+    padding: 16px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: sticky;
+    top: 20px;
+  }
+  .history-panel h2 {
+    font-size: 13px;
+    color: #9aa3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 12px 0;
+  }
+  .history-empty { font-size:12.5px; color:#6f7690; }
+  .history-item {
+    background: rgba(22,26,38,0.7);
+    border: 1px solid rgba(46,53,71,0.8);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .history-item:hover { border-color:#35c2e0; background: rgba(53,194,224,0.08); }
+  .history-item .h-name { font-size:13px; font-weight:600; color:#e6e9f0; margin-bottom:3px; word-break:break-word; }
+  .history-item .h-date { font-size:11px; color:#6f7690; margin-bottom:4px; }
+  .history-item .h-brief { font-size:11.5px; color:#aab0c2; line-height:1.5; }
+  .content-main { flex:1; min-width:0; }
+  @media (max-width: 900px) { .page-layout { flex-direction: column; } .history-panel { width:100%; position:static; max-height:260px; } }
+
+  .modal-overlay {
+    display:none;
+    position:fixed; inset:0;
+    background: rgba(8,10,16,0.65);
+    z-index: 100;
+    align-items:center; justify-content:center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal-box {
+    background: #1b1f2e;
+    border: 1px solid #2a3042;
+    border-radius: 14px;
+    padding: 24px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal-box h3 {
+    margin: 0 0 4px 0;
+    font-size: 17px;
+    background: linear-gradient(90deg, #35c2e0, #4ee0a8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .modal-box .h-date { font-size:12px; color:#6f7690; margin-bottom:16px; }
+  .modal-box .breakdown { margin-top:0; }
+  .modal-close {
+    width:auto; padding: 8px 16px; margin-top:18px;
+    background:#2a3042; color:#e6e9f0; font-weight:600; font-size:13px;
+  }
+  .modal-close:hover { opacity:0.85; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Стоимость обзвона</h1>
   <div class="subtitle">Голосовой робот Арина</div>
+
+  <div class="page-layout">
+  <div class="history-panel">
+    <h2>История расчетов</h2>
+    <div id="history-list">
+      <div class="history-empty">Пока нет сохраненных расчетов</div>
+    </div>
+  </div>
+
+  <div class="content-main">
 
   <div class="cards-row">
   <div class="card">
@@ -138,6 +221,7 @@
 
     <label>Звонков на номер</label>
     <input type="number" id="zvonki_na_nomer" value="1" min="0">
+    <div class="hint">Рекомендуется выставлять от 2ух для повышенного % дозвона</div>
 
     <label>Длина разговора, мин</label>
     <input type="number" step="0.05" id="dlina" value="0.5" min="0">
@@ -153,7 +237,16 @@
     <select id="scenario">
       <option value="questions">С вопросами (Диалог)</option>
       <option value="info" selected>Информирование (Монолог)</option>
+      <option value="existing">Уже есть сценарий (0 р.)</option>
     </select>
+    <div class="hint">При выборе "Уже есть сценарий" оплата за разработку не включается в итоговую стоимость</div>
+
+    <label>Кол-во СМС</label>
+    <input type="number" id="sms_count" value="0" min="0">
+    <div class="hint">Количество СМС умножается на тариф "До 70 символов" (р.7,00) и добавляется в итоговую стоимость</div>
+
+    <label>Название проекта для расчета</label>
+    <input type="text" id="project_name" placeholder="Например: Обзвон клиентов банка">
   </div>
 
   <div class="card">
@@ -190,6 +283,18 @@
       <div style="margin-top:14px;">Итого: <span class="total" id="total"></span></div>
     </div>
   </div>
+
+  </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal-box">
+    <h3 id="modal-title"></h3>
+    <div class="h-date" id="modal-date"></div>
+    <div class="breakdown" id="modal-body"></div>
+    <button class="modal-close" onclick="closeModal()">Закрыть</button>
+  </div>
 </div>
 
 <script>
@@ -198,11 +303,70 @@ const TARIFFS = Object.freeze({
   tarifMab: 0.60,
   tarifTarifikacia: 1.32,
   tarifArina: { out: 5.79, in: 3.55 },
-  scenario: { questions: 6800.00, info: 5200.00 }
+  scenario: { questions: 6800.00, info: 5200.00, existing: 0.00 },
+  tarifSms: 7.00
 });
+
+const SCENARIO_LABELS = { questions: 'С вопросами (Диалог)', info: 'Информирование (Монолог)', existing: 'Уже есть сценарий' };
+const HISTORY_KEY = 'zvonki_calc_history';
 
 function fmt(n){
   return 'р.' + n.toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function loadHistory(){
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+  } catch(e) { return []; }
+}
+
+function saveHistory(list){
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+}
+
+function renderHistory(){
+  const list = loadHistory();
+  const container = document.getElementById('history-list');
+  if(!list.length){
+    container.innerHTML = '<div class="history-empty">Пока нет сохраненных расчетов</div>';
+    return;
+  }
+  container.innerHTML = list.slice().reverse().map((item, revIdx) => {
+    const idx = list.length - 1 - revIdx;
+    return `<div class="history-item" onclick="openHistoryItem(${idx})">
+      <div class="h-name">${item.projectName}</div>
+      <div class="h-date">${item.date}</div>
+      <div class="h-brief">ИНН: <b>${item.inn}</b> · Номеров: <b>${item.srznach}</b><br>Ожидаем: <b>${item.kolDozvonov}</b> дозвонов<br>Стоимость: <b>${item.itogoFmt}</b></div>
+    </div>`;
+  }).join('');
+}
+
+function openHistoryItem(idx){
+  const list = loadHistory();
+  const item = list[idx];
+  if(!item) return;
+  document.getElementById('modal-title').innerText = item.projectName;
+  document.getElementById('modal-date').innerText = item.date;
+  document.getElementById('modal-body').innerHTML =
+    `Кол-во ИНН: <b>${item.inn}</b><br>` +
+    `Кол-во номеров на 1 ИНН: <b>${item.srznach}</b><br>` +
+    `Количество звонков: <b>${item.kolZvonkov}</b><br>` +
+    `Количество дозвонов (85%): <b>${item.kolDozvonov}</b><br>` +
+    `Минуты суммарно: <b>${item.minuty}</b><br><br>` +
+    `Стоимость телефонии: <b>${item.stoimostTelefoniiFmt}</b><br>` +
+    `Стоимость Арины: <b>${item.stoimostArinyFmt}</b><br>` +
+    `Стоимость сценария: <b>${item.scenarioCostFmt}</b><br>` +
+    `Стоимость СМС: <b>${item.smsCostFmt}</b><br><br>` +
+    `Итого: <b>${item.itogoFmt}</b>`;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+
+function closeModalOnOverlay(e){
+  if(e.target.id === 'modal-overlay') closeModal();
 }
 
 function calc(){
@@ -214,13 +378,16 @@ function calc(){
   const arinaRate = TARIFFS.tarifArina[directionKey];
   const scenarioKey = document.getElementById('scenario').value;
   const scenarioCost = TARIFFS.scenario[scenarioKey];
+  const smsCount = parseFloat(document.getElementById('sms_count').value)||0;
+  const smsCost = smsCount * TARIFFS.tarifSms;
+  const projectName = (document.getElementById('project_name').value || '').trim() || 'Без названия';
 
   const kolZvonkov = inn * srznach * zvonkiNaNomer;
   const kolDozvonov = kolZvonkov * TARIFFS.dozvonPct;
   const minuty = kolDozvonov * dlina;
   const stoimostTelefonii = minuty * (TARIFFS.tarifMab + TARIFFS.tarifTarifikacia);
   const stoimostAriny = kolDozvonov * arinaRate;
-  const itogo = stoimostTelefonii + stoimostAriny + scenarioCost;
+  const itogo = stoimostTelefonii + stoimostAriny + scenarioCost + smsCost;
 
   document.getElementById('breakdown-qty').innerHTML =
     `Количество звонков: <b>${kolZvonkov.toFixed(0)}</b><br>` +
@@ -230,11 +397,35 @@ function calc(){
   document.getElementById('breakdown-cost').innerHTML =
     `Стоимость телефонии: <b>${fmt(stoimostTelefonii)}</b><br>` +
     `Стоимость Арины: <b>${fmt(stoimostAriny)}</b><br>` +
-    `Стоимость сценария: <b>${fmt(scenarioCost)}</b>`;
+    `Стоимость сценария: <b>${fmt(scenarioCost)}</b><br>` +
+    `Стоимость СМС: <b>${fmt(smsCost)}</b>`;
 
   document.getElementById('total').innerText = fmt(itogo);
   document.getElementById('result').style.display = 'flex';
+
+  const historyEntry = {
+    projectName: projectName,
+    date: new Date().toLocaleString('ru-RU'),
+    inn: inn,
+    srznach: srznach,
+    kolZvonkov: kolZvonkov.toFixed(0),
+    kolDozvonov: kolDozvonov.toFixed(0),
+    minuty: minuty.toFixed(1),
+    scenarioLabel: SCENARIO_LABELS[scenarioKey] || scenarioKey,
+    stoimostTelefoniiFmt: fmt(stoimostTelefonii),
+    stoimostArinyFmt: fmt(stoimostAriny),
+    scenarioCostFmt: fmt(scenarioCost),
+    smsCostFmt: fmt(smsCost),
+    itogoFmt: fmt(itogo)
+  };
+  const list = loadHistory();
+  list.push(historyEntry);
+  if(list.length > 30) list.shift();
+  saveHistory(list);
+  renderHistory();
 }
+
+renderHistory();
 calc();
 </script>
 </body>
